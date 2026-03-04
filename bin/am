@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/../alias_manager.py" ]]; then
+  exec "$SCRIPT_DIR/../alias_manager.py" "$@"
+fi
 exec "$SCRIPT_DIR/alias_manager.py" "$@"

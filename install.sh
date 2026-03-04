@@ -4,10 +4,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="$HOME/.alias-manager"
 CONFIG_JSON="$CONFIG_DIR/config.json"
+INSTALL_BIN="$CONFIG_DIR/bin"
 ZSHRC_PATH="$HOME/.zshrc"
-DO_APPEND="${1:-}"
+DO_APPEND=""
+
+for arg in "$@"; do
+  case "$arg" in
+    --append-zshrc) DO_APPEND="1" ;;
+  esac
+done
 
 mkdir -p "$CONFIG_DIR"
+mkdir -p "$INSTALL_BIN"
 
 if [[ ! -f "$CONFIG_JSON" ]]; then
   if [[ -f "$SCRIPT_DIR/config.example.json" ]]; then
@@ -20,24 +28,19 @@ else
   echo "Config exists: $CONFIG_JSON"
 fi
 
-chmod +x "$SCRIPT_DIR/alias_manager.py"
+chmod 600 "$CONFIG_JSON" 2>/dev/null || true
 
-if command -v python3 >/dev/null 2>&1; then
-  echo "Installing PyYAML (for YAML config support)..."
-  python3 -m pip install --break-system-packages --user pyyaml
-else
-  echo "python3 not found; skipping PyYAML install."
-fi
+cp "$SCRIPT_DIR/alias_manager.py" "$INSTALL_BIN/alias_manager.py"
+cp "$SCRIPT_DIR/bin/am" "$INSTALL_BIN/am"
+chmod +x "$INSTALL_BIN/alias_manager.py" "$INSTALL_BIN/am"
 
 echo ""
 echo "Add this to your ~/.zshrc (adjust path if needed):"
 HOOK_CONTENT=$(cat <<'ZSH'
 # alias-manager
-export PATH="/Users/alex.rocha/Development/alias-manager/bin:$PATH"
+export PATH="$HOME/.alias-manager/bin:$PATH"
 
 __am_apply_aliases() {
-  local am_script="/Users/alex.rocha/Development/alias-manager/alias_manager.py"
-
   # Clear previously applied aliases.
   if [[ -n "$__AM_ACTIVE_ALIASES" ]]; then
     for a in ${(z)__AM_ACTIVE_ALIASES}; do
@@ -47,9 +50,9 @@ __am_apply_aliases() {
   __AM_ACTIVE_ALIASES=""
 
   # Apply aliases for current folder.
-  if [[ -x "$am_script" ]]; then
+  if command -v am >/dev/null 2>&1; then
     local am_output
-    am_output="$($am_script --cwd "$PWD" --print)"
+    am_output="$(am --cwd "$PWD" --print)"
     if [[ -n "$am_output" ]]; then
       eval "$am_output"
     fi
@@ -63,9 +66,8 @@ __am_apply_aliases
 # Optional: show a prompt marker when aliases exist in the current folder.
 # Enable by adding: RPROMPT='$(am_prompt)'
 am_prompt() {
-  local am_script="/Users/alex.rocha/Development/alias-manager/alias_manager.py"
   local out
-  out="$($am_script prompt --cwd "$PWD" --symbol "⚙")"
+  out="$(am prompt --cwd "$PWD" --symbol "⚙")"
   if [[ -n "$out" ]]; then
     echo "%F{cyan}${out}%f"
   fi
@@ -74,7 +76,7 @@ ZSH
 )
 echo "$HOOK_CONTENT"
 
-if [[ "$DO_APPEND" == "--append-zshrc" ]]; then
+if [[ -n "$DO_APPEND" ]]; then
   echo ""
   echo "Appending hook to $ZSHRC_PATH..."
   {

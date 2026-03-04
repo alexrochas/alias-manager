@@ -51,6 +51,7 @@ Notes:
 - Use `am list --sources` to show which patterns matched.
 - Use `am remove --all` to remove all aliases for the current folder.
 - Use `am remove --all-matching` to remove aliases for all matching patterns.
+- Config security checks are enabled by default; use `--allow-insecure-config` to bypass.
 
 ## Example config
 Create `~/.alias-manager/config.json` (or `config.yaml` / `config.yml`):
@@ -100,9 +101,8 @@ If you want a subtle marker in your prompt when a folder has aliases, add:
 ```zsh
 # Add to ~/.zshrc after alias-manager setup
 am_prompt() {
-  local am_script="/Users/alex.rocha/Development/alias-manager/alias_manager.py"
   local out
-  out="$($am_script prompt --cwd "$PWD" --symbol "⚙")"
+  out="$(am prompt --cwd "$PWD" --symbol "⚙")"
   if [[ -n "$out" ]]; then
     echo "%F{cyan}${out}%f"
   fi
@@ -113,15 +113,13 @@ RPROMPT='$(am_prompt)'
 ```
 
 ## Zsh setup
-Add this to your `~/.zshrc` (adjust the script path if needed):
+Add this to your `~/.zshrc`:
 
 ```zsh
 # alias-manager
-export PATH="/Users/alex.rocha/Development/alias-manager/bin:$PATH"
+export PATH="$HOME/.alias-manager/bin:$PATH"
 
 __am_apply_aliases() {
-  local am_script="/Users/alex.rocha/Development/alias-manager/alias_manager.py"
-
   # Clear previously applied aliases.
   if [[ -n "$__AM_ACTIVE_ALIASES" ]]; then
     for a in ${(z)__AM_ACTIVE_ALIASES}; do
@@ -131,9 +129,9 @@ __am_apply_aliases() {
   __AM_ACTIVE_ALIASES=""
 
   # Apply aliases for current folder.
-  if [[ -x "$am_script" ]]; then
+  if command -v am >/dev/null 2>&1; then
     local am_output
-    am_output="$($am_script --cwd "$PWD" --print)"
+    am_output="$(am --cwd "$PWD" --print)"
     if [[ -n "$am_output" ]]; then
       eval "$am_output"
     fi
@@ -150,9 +148,8 @@ __am_apply_aliases
 # Optional: show a prompt marker when aliases exist in the current folder.
 # Enable by adding: RPROMPT='$(am_prompt)'
 am_prompt() {
-  local am_script="/Users/alex.rocha/Development/alias-manager/alias_manager.py"
   local out
-  out="$($am_script prompt --cwd "$PWD")"
+  out="$(am prompt --cwd "$PWD" --symbol "⚙")"
   if [[ -n "$out" ]]; then
     echo "%F{cyan}${out}%f"
   fi
@@ -167,7 +164,7 @@ chmod +x /Users/alex.rocha/Development/alias-manager/alias_manager.py
 ```
 
 ## Install helper
-Run the installer (creates config, installs PyYAML, prints the hook):
+Run the installer (creates config, installs the CLI into `~/.alias-manager/bin`, prints the hook):
 
 ```bash
 /Users/alex.rocha/Development/alias-manager/install.sh
@@ -179,6 +176,7 @@ Append the hook automatically:
 /Users/alex.rocha/Development/alias-manager/install.sh --append-zshrc
 ```
 
+
 ## Troubleshooting
 - If nothing happens, ensure the config file exists and is valid JSON (or YAML).
 - If aliases don't update, make sure the hook is in your `~/.zshrc` and restart the shell.
@@ -187,3 +185,12 @@ Append the hook automatically:
   - Example: `/Users/alex.rocha/Development/alias-manager/alias_manager.py --cwd "$PWD" --debug`
 - To print a list of aliases when you enter a folder, use `--print` in the hook.
   - Output is colorized by default.
+
+## Security notes
+- Config files are rejected if they are symlinks, not owned by you, or group/world writable.
+- Alias names must be safe identifiers (`letters`, `numbers`, `_`, `-`).
+- Use `--allow-insecure-config` only if you understand the risks.
+- To fix permissions: `chmod 600 ~/.alias-manager/config.json`
+
+## License
+PolyForm Noncommercial 1.0.0 — forking/cloning/modifying is allowed, but commercial use is not.

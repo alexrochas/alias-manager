@@ -18,20 +18,79 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shlex
 import subprocess
+import stat
 from pathlib import PurePosixPath
 from typing import Dict, Iterable, List, Optional, Tuple
 
 
 DEFAULT_CONFIG = os.path.expanduser("~/.alias-manager/config.json")
+ALIAS_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
 
 
-def _load_config(path: str, debug: bool) -> Dict[str, Dict[str, str]]:
+def _is_valid_alias_name(name: str) -> bool:
+    return bool(ALIAS_NAME_RE.match(name))
+
+
+def _config_security_ok(path: str, allow_insecure: bool, debug: bool) -> bool:
+    if allow_insecure:
+        return True
+    try:
+        st = os.lstat(path)
+    except OSError:
+        return True
+    if stat.S_ISLNK(st.st_mode):
+        if debug:
+            print(f"[alias-manager] config is a symlink: {path}", file=os.sys.stderr)
+        _warn_insecure_config(path)
+        return False
+    if st.st_uid != os.getuid():
+        if debug:
+            print(f"[alias-manager] config not owned by current user: {path}", file=os.sys.stderr)
+        _warn_insecure_config(path)
+        return False
+    if st.st_mode & 0o022:
+        if debug:
+            print(f"[alias-manager] config is group/world-writable: {path}", file=os.sys.stderr)
+        _warn_insecure_config(path)
+        return False
+    return True
+
+
+def _warn_insecure_config(path: str) -> None:
+    warn_file = os.path.expanduser("~/.alias-manager/.insecure_warned")
+    if os.path.exists(warn_file):
+        return
+    try:
+        os.makedirs(os.path.dirname(warn_file), exist_ok=True)
+        with open(warn_file, "w", encoding="utf-8") as f:
+            f.write(path + "\n")
+    except OSError:
+        pass
+    print(
+        "[alias-manager] WARNING: insecure config file detected; "
+        "fix permissions or pass --allow-insecure-config.",
+        file=os.sys.stderr,
+    )
+
+
+def _load_config(
+    path: str, debug: bool, allow_insecure: bool
+) -> Dict[str, Dict[str, str]]:
     if not os.path.exists(path):
         if debug:
             print(f"[alias-manager] config not found: {path}", file=os.sys.stderr)
         return {}
+    if not _config_security_ok(path, allow_insecure, debug):
+        print(
+            "[alias-manager] refusing to read insecure config; "
+            "fix permissions or pass --allow-insecure-config",
+            file=os.sys.stderr,
+        )
+        return {}
+    _clear_insecure_warning()
     try:
         with open(path, "r", encoding="utf-8") as f:
             if path.endswith((".yaml", ".yml")):
@@ -64,10 +123,25 @@ def _load_config(path: str, debug: bool) -> Dict[str, Dict[str, str]]:
         clean_aliases: Dict[str, str] = {}
         for name, cmd in aliases.items():
             if isinstance(name, str) and isinstance(cmd, str):
-                clean_aliases[name] = cmd
+                if _is_valid_alias_name(name):
+                    clean_aliases[name] = cmd
+                elif debug:
+                    print(
+                        f"[alias-manager] invalid alias name skipped: {name}",
+                        file=os.sys.stderr,
+                    )
         if clean_aliases:
             clean[expanded_pattern] = clean_aliases
     return clean
+
+
+def _clear_insecure_warning() -> None:
+    warn_file = os.path.expanduser("~/.alias-manager/.insecure_warned")
+    try:
+        if os.path.exists(warn_file):
+            os.remove(warn_file)
+    except OSError:
+        pass
 
 
 def _match_patterns(
@@ -119,16 +193,16 @@ def _format_pretty(aliases: Dict[str, str], cwd: str) -> Iterable[str]:
     if not aliases:
         return []
     # ANSI colors (inspired by lsd-style vivid output)
-    c_reset = "\\033[0m"
-    c_header = "\\033[1;36m"  # bold cyan
-    c_name = "\\033[1;33m"  # bold yellow
-    c_arrow = "\\033[2;37m"  # dim gray
-    c_cmd = "\\033[0;32m"  # green
+    c_reset = "\033[0m"
+    c_header = "\033[1;36m"  # bold cyan
+    c_name = "\033[1;33m"  # bold yellow
+    c_arrow = "\033[2;37m"  # dim gray
+    c_cmd = "\033[0;32m"  # green
 
     lines = [f"{c_header}Aliases for {cwd}:{c_reset}"]
     for name, cmd in aliases.items():
         lines.append(f"  {c_name}{name}{c_reset} {c_arrow}->{c_reset} {c_cmd}{cmd}{c_reset}")
-    return [f"printf '%b\\n' {shlex.quote(line)}" for line in lines]
+    return [f"printf '%s\\n' {shlex.quote(line)}" for line in lines]
 
 
 def _resolve_config_path(config_arg: str) -> str:
@@ -161,6 +235,10 @@ def _save_config(path: str, data: Dict[str, Dict[str, str]]) -> None:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, sort_keys=False)
             f.write("\n")
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
 
 
 def _to_config_key(path: str, recursive: bool) -> str:
@@ -184,12 +262,16 @@ def _confirm(prompt: str, assume_yes: bool) -> bool:
 
 def _cmd_add(args: argparse.Namespace) -> int:
     config_path = _resolve_config_path(args.config)
-    config = _load_config(config_path, args.debug)
+    config = _load_config(config_path, args.debug, args.allow_insecure_config)
 
     if args.no_recursive:
         args.recursive = False
     key = _to_config_key(args.cwd, args.recursive)
     aliases = config.get(key, {})
+
+    if not _is_valid_alias_name(args.name):
+        print("Invalid alias name. Use letters, numbers, underscore, or hyphen.")
+        return 1
 
     if args.name in aliases and aliases[args.name] != args.command:
         if not _confirm(
@@ -208,7 +290,7 @@ def _cmd_add(args: argparse.Namespace) -> int:
 
 def _cmd_remove(args: argparse.Namespace) -> int:
     config_path = _resolve_config_path(args.config)
-    config = _load_config(config_path, args.debug)
+    config = _load_config(config_path, args.debug, args.allow_insecure_config)
 
     if args.no_recursive:
         args.recursive = False
@@ -265,7 +347,7 @@ def _cmd_remove(args: argparse.Namespace) -> int:
 
 def _cmd_list(args: argparse.Namespace) -> int:
     config_path = _resolve_config_path(args.config)
-    config = _load_config(config_path, args.debug)
+    config = _load_config(config_path, args.debug, args.allow_insecure_config)
     aliases, sources = _match_patterns_with_sources(config, args.cwd, args.debug)
     if not aliases:
         print("No aliases for this folder.")
@@ -288,7 +370,7 @@ def _cmd_open(args: argparse.Namespace) -> int:
 
 def _cmd_prompt(args: argparse.Namespace) -> int:
     config_path = _resolve_config_path(args.config)
-    config = _load_config(config_path, args.debug)
+    config = _load_config(config_path, args.debug, args.allow_insecure_config)
     aliases = _match_patterns(config, args.cwd, args.debug)
     if aliases:
         print(args.symbol, end="")
@@ -299,6 +381,7 @@ def main() -> int:
     common.add_argument("--cwd", default=os.getcwd())
     common.add_argument("--config", default=DEFAULT_CONFIG)
     common.add_argument("--debug", action="store_true")
+    common.add_argument("--allow-insecure-config", action="store_true")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--print", action="store_true")
@@ -361,7 +444,7 @@ def main() -> int:
         print(f"[alias-manager] cwd: {args.cwd}", file=os.sys.stderr)
         print(f"[alias-manager] config: {config_path}", file=os.sys.stderr)
 
-    config = _load_config(config_path, args.debug)
+    config = _load_config(config_path, args.debug, args.allow_insecure_config)
     aliases = _match_patterns(config, args.cwd, args.debug)
     for line in _format_aliases(aliases):
         print(line)
