@@ -33,6 +33,25 @@ Folder-specific aliases for your shell.
 3. Restart your shell or run `source ~/.zshrc`.
 4. `cd` into a matching folder and use your aliases.
 
+## CLI (am)
+`am` edits the config for the current folder so you don't have to touch JSON manually.
+
+```bash
+am add start "npm run dev"
+am remove start
+am list
+am open
+am --help
+```
+
+Notes:
+- Use `--yes` to skip confirmation prompts.
+- `am add` is recursive by default (stores `/path/**`).
+- Use `--no-recursive` to store the exact folder.
+- Use `am list --sources` to show which patterns matched.
+- Use `am remove --all` to remove all aliases for the current folder.
+- Use `am remove --all-matching` to remove aliases for all matching patterns.
+
 ## Example config
 Create `~/.alias-manager/config.json` (or `config.yaml` / `config.yml`):
 
@@ -75,11 +94,31 @@ cd ~/Projects/other
 ## Demo
 ![alias-manager demo](assets/demo.gif)
 
+## Prompt indicator (oh-my-zsh)
+If you want a subtle marker in your prompt when a folder has aliases, add:
+
+```zsh
+# Add to ~/.zshrc after alias-manager setup
+am_prompt() {
+  local am_script="/Users/alex.rocha/Development/alias-manager/alias_manager.py"
+  local out
+  out="$($am_script prompt --cwd "$PWD" --symbol "⚙")"
+  if [[ -n "$out" ]]; then
+    echo "%F{cyan}${out}%f"
+  fi
+}
+
+# Example: show it on the right side
+RPROMPT='$(am_prompt)'
+```
+
 ## Zsh setup
 Add this to your `~/.zshrc` (adjust the script path if needed):
 
 ```zsh
 # alias-manager
+export PATH="/Users/alex.rocha/Development/alias-manager/bin:$PATH"
+
 __am_apply_aliases() {
   local am_script="/Users/alex.rocha/Development/alias-manager/alias_manager.py"
 
@@ -107,6 +146,17 @@ add-zsh-hook chpwd __am_apply_aliases
 
 # Run once for the initial shell.
 __am_apply_aliases
+
+# Optional: show a prompt marker when aliases exist in the current folder.
+# Enable by adding: RPROMPT='$(am_prompt)'
+am_prompt() {
+  local am_script="/Users/alex.rocha/Development/alias-manager/alias_manager.py"
+  local out
+  out="$($am_script prompt --cwd "$PWD")"
+  if [[ -n "$out" ]]; then
+    echo "%F{cyan}${out}%f"
+  fi
+}
 ```
 
 ## Permissions

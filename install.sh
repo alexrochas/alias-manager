@@ -33,6 +33,8 @@ echo ""
 echo "Add this to your ~/.zshrc (adjust path if needed):"
 HOOK_CONTENT=$(cat <<'ZSH'
 # alias-manager
+export PATH="/Users/alex.rocha/Development/alias-manager/bin:$PATH"
+
 __am_apply_aliases() {
   local am_script="/Users/alex.rocha/Development/alias-manager/alias_manager.py"
 
@@ -57,6 +59,17 @@ __am_apply_aliases() {
 autoload -Uz add-zsh-hook
 add-zsh-hook chpwd __am_apply_aliases
 __am_apply_aliases
+
+# Optional: show a prompt marker when aliases exist in the current folder.
+# Enable by adding: RPROMPT='$(am_prompt)'
+am_prompt() {
+  local am_script="/Users/alex.rocha/Development/alias-manager/alias_manager.py"
+  local out
+  out="$($am_script prompt --cwd "$PWD" --symbol "⚙")"
+  if [[ -n "$out" ]]; then
+    echo "%F{cyan}${out}%f"
+  fi
+}
 ZSH
 )
 echo "$HOOK_CONTENT"
