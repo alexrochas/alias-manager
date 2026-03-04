@@ -47,7 +47,7 @@ __am_apply_aliases() {
   # Apply aliases for current folder.
   if [[ -x "$am_script" ]]; then
     local am_output
-    am_output="$($am_script --cwd "$PWD")"
+    am_output="$($am_script --cwd "$PWD" --print)"
     if [[ -n "$am_output" ]]; then
       eval "$am_output"
     fi

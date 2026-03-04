@@ -48,7 +48,7 @@ __am_apply_aliases() {
   # Apply aliases for current folder.
   if [[ -x "$am_script" ]]; then
     local am_output
-    am_output="$($am_script --cwd "$PWD")"
+    am_output="$($am_script --cwd "$PWD" --print)"
     if [[ -n "$am_output" ]]; then
       eval "$am_output"
     fi
@@ -89,3 +89,5 @@ Append the hook automatically:
 - For YAML config, install PyYAML: `pip install pyyaml`
 - To see which patterns matched, run the script with `--debug`:
   - Example: `/Users/alex.rocha/Development/alias-manager/alias_manager.py --cwd "$PWD" --debug`
+- To print a list of aliases when you enter a folder, use `--print` in the hook.
+  - Output is colorized by default.

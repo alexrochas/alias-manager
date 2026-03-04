@@ -100,12 +100,28 @@ def _format_aliases(aliases: Dict[str, str]) -> Iterable[str]:
     else:
         yield "__AM_ACTIVE_ALIASES="
 
+def _format_pretty(aliases: Dict[str, str], cwd: str) -> Iterable[str]:
+    if not aliases:
+        return []
+    # ANSI colors (inspired by lsd-style vivid output)
+    c_reset = "\\033[0m"
+    c_header = "\\033[1;36m"  # bold cyan
+    c_name = "\\033[1;33m"  # bold yellow
+    c_arrow = "\\033[2;37m"  # dim gray
+    c_cmd = "\\033[0;32m"  # green
+
+    lines = [f"{c_header}Aliases for {cwd}:{c_reset}"]
+    for name, cmd in aliases.items():
+        lines.append(f"  {c_name}{name}{c_reset} {c_arrow}->{c_reset} {c_cmd}{cmd}{c_reset}")
+    return [f"printf '%b\\n' {shlex.quote(line)}" for line in lines]
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--cwd", default=os.getcwd())
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--print", action="store_true")
     args = parser.parse_args()
 
     config_path = os.path.expanduser(args.config)
@@ -130,6 +146,9 @@ def main() -> int:
     aliases = _match_patterns(config, args.cwd, args.debug)
     for line in _format_aliases(aliases):
         print(line)
+    if args.print:
+        for line in _format_pretty(aliases, args.cwd):
+            print(line)
     return 0
 
 
