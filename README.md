@@ -1,5 +1,7 @@
 # alias-manager
 
+![alias-manager logo](logo.svg)
+
 Folder-specific aliases for your shell.
 
 ## How it works
