@@ -1,0 +1,10 @@
+{
+  "/Users/alex/Projects/on-frontend/**": {
+    "start": "npx yarn on-shop dev:safe",
+    "test": "npx yarn test"
+  },
+  "/Users/alex/Projects/on-backend": {
+    "start": "npm run dev",
+    "test": "npm test"
+  }
+}
