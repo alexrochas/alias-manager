@@ -11,11 +11,11 @@ Create `~/.alias-manager/config.json` (or `config.yaml` / `config.yml`):
 
 ```json
 {
-  "/Users/alex/Projects/on-frontend/**": {
-    "start": "npx yarn on-shop dev:safe",
-    "test": "npx yarn test"
+  "/Users/alex/Projects/web-app/**": {
+    "start": "npm run dev",
+    "test": "npm test"
   },
-  "/Users/alex/Projects/on-backend": {
+  "/Users/alex/Projects/api-service": {
     "start": "npm run dev",
     "test": "npm test"
   }
