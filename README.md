@@ -12,7 +12,7 @@ Folder-specific aliases for your shell.
 1. Run the installer:
 
 ```bash
-/Users/alex.rocha/Development/alias-manager/install.sh --append-zshrc
+./install.sh --append-zshrc
 ```
 
 2. Edit your config:
@@ -160,20 +160,20 @@ am_prompt() {
 Make the script executable:
 
 ```bash
-chmod +x /Users/alex.rocha/Development/alias-manager/alias_manager.py
+chmod +x ~/.alias-manager/bin/alias_manager.py
 ```
 
 ## Install helper
 Run the installer (creates config, installs the CLI into `~/.alias-manager/bin`, prints the hook):
 
 ```bash
-/Users/alex.rocha/Development/alias-manager/install.sh
+./install.sh
 ```
 
 Append the hook automatically:
 
 ```bash
-/Users/alex.rocha/Development/alias-manager/install.sh --append-zshrc
+./install.sh --append-zshrc
 ```
 
 
@@ -182,7 +182,7 @@ Append the hook automatically:
 - If aliases don't update, make sure the hook is in your `~/.zshrc` and restart the shell.
 - For YAML config, install PyYAML: `pip install pyyaml`
 - To see which patterns matched, run the script with `--debug`:
-  - Example: `/Users/alex.rocha/Development/alias-manager/alias_manager.py --cwd "$PWD" --debug`
+  - Example: `~/.alias-manager/bin/alias_manager.py --cwd "$PWD" --debug`
 - To print a list of aliases when you enter a folder, use `--print` in the hook.
   - Output is colorized by default.
 
