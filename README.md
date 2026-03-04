@@ -8,6 +8,31 @@ Folder-specific aliases for your shell.
 - You define aliases in `~/.alias-manager/config.json` (or `config.yaml`/`config.yml`) using glob patterns.
 - A zsh hook runs when you `cd`, clears previous folder aliases, and applies the ones that match the new folder.
 
+## Quick start
+1. Run the installer:
+
+```bash
+/Users/alex.rocha/Development/alias-manager/install.sh --append-zshrc
+```
+
+2. Edit your config:
+
+```json
+{
+  "/Users/alex/Projects/web-app/**": {
+    "start": "npm run dev",
+    "test": "npm test"
+  },
+  "/Users/alex/Projects/api-service": {
+    "start": "npm run dev",
+    "test": "npm test"
+  }
+}
+```
+
+3. Restart your shell or run `source ~/.zshrc`.
+4. `cd` into a matching folder and use your aliases.
+
 ## Example config
 Create `~/.alias-manager/config.json` (or `config.yaml` / `config.yml`):
 
@@ -30,6 +55,25 @@ Notes:
 - Exact paths (no glob) only match that exact folder.
 - `~` is supported in patterns and the config path.
   - `/**` also matches the base folder itself (e.g. `/path/**` matches `/path`).
+
+## Example session
+```bash
+cd ~/Projects/web-app
+# Printed automatically on entry (with color):
+# Aliases for /Users/alex/Projects/web-app:
+#   start -> npm run dev
+#   test  -> npm test
+```
+
+Move to another folder:
+
+```bash
+cd ~/Projects/other
+# No aliases are printed, and any previously applied aliases are cleared.
+```
+
+## Demo
+![alias-manager demo](assets/demo.gif)
 
 ## Zsh setup
 Add this to your `~/.zshrc` (adjust the script path if needed):
