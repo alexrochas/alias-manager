@@ -52,7 +52,13 @@ __am_apply_aliases() {
   # Apply aliases for current folder.
   if command -v am >/dev/null 2>&1; then
     local am_output
-    am_output="$(am --cwd "$PWD" --print)"
+    if [[ -n "${1-}" ]]; then
+      # chpwd provides args; show pretty list on folder change.
+      am_output="$(am --cwd "$PWD" --print)"
+    else
+      # precmd has no args; refresh aliases silently.
+      am_output="$(am --cwd "$PWD")"
+    fi
     if [[ -n "$am_output" ]]; then
       eval "$am_output"
     fi
@@ -61,6 +67,7 @@ __am_apply_aliases() {
 
 autoload -Uz add-zsh-hook
 add-zsh-hook chpwd __am_apply_aliases
+add-zsh-hook precmd __am_apply_aliases
 __am_apply_aliases
 
 # Optional: show a prompt marker when aliases exist in the current folder.
